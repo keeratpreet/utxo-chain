@@ -7,6 +7,8 @@ A multi-node blockchain in Python that combines two course assignments (SIL7163,
 
 In A1, block bodies held account-style transfers that the mining node signed for everyone. Here, blocks carry real UTXO transactions signed by the coin owners. Every block is checked by replaying its transactions through the script verifier against the coins that exist at that point in the chain.
 
+**Interactive lab:** open [`docs/utxo_chain_lab.html`](docs/utxo_chain_lab.html) in a browser. It runs the same rules in JavaScript with real secp256k1 signatures: spend coins and attack them, step through the script stack, check Merkle proofs, and mine on three nodes while they settle forks. The lab's genesis hash equals the Python one, and chains mined in the lab pass this project's `replay()` validation.
+
 ## What it does
 
 | Area | Implementation |
@@ -38,6 +40,7 @@ chain/
 scripts/
   make_pool.py    signed transaction pool with deliberate double-spend pairs
   run_network.py  start N node processes, then check they converged
+docs/utxo_chain_lab.html   interactive lab (open in a browser)
 tests/            37 tests: script, verifier, Merkle, chain, consensus, threaded network
 ```
 
