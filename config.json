@@ -1,0 +1,9 @@
+{
+  "num_nodes": 4,
+  "difficulty": 5,
+  "block_reward": 50,
+  "max_transactions_per_block": 5,
+  "sync_frequency_seconds": 1.0,
+  "pool_size": 40,
+  "double_spend_every": 8
+}
