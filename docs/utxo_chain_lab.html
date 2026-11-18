@@ -170,6 +170,23 @@ select, input[type="number"] { font: inherit; font-size: 14px; color: var(--fg);
 .step .res em { font-style: normal; font-weight: 600; margin-right: 4px; }
 .step.pass .res em { color: var(--ok); } .step.fail .res em { color: var(--bad); }
 
+.anatomy { display: grid; grid-template-columns: 64px minmax(0, 1fr); gap: 12px; align-items: center; padding: 10px 12px; border-radius: 12px; background: var(--panel2); margin-bottom: 10px; }
+.anatomy .disc { width: 52px; height: 52px; font-size: 18px; box-shadow: inset 0 0 0 3px color-mix(in oklab, var(--coin) 80%, black), 0 0 0 2px var(--p-alice); }
+.anatomy ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 3px; font-size: 12.5px; color: var(--muted); }
+.anatomy li b { color: var(--fg); font-weight: 600; }
+.setsum { display: flex; justify-content: space-between; gap: 8px; flex-wrap: wrap; font-size: 12.5px; color: var(--muted); padding: 2px 0 6px; }
+.setsum b { color: var(--fg); font-family: var(--mono); font-weight: 600; }
+.who small b { color: var(--fg); font-weight: 600; }
+.coindetail { margin-top: 12px; padding: 12px; border-radius: 12px; border: 1px solid var(--line); background: var(--panel2); display: flex; flex-direction: column; gap: 8px; font-size: 13px; }
+.coindetail h4 { margin: 0; font-size: 14px; display: flex; align-items: center; gap: 8px; }
+.coindetail .badge { font-family: var(--mono); font-size: 11px; padding: 1px 7px; border-radius: 6px; background: var(--ok-bg); color: var(--ok); }
+.coindetail .badge.sp { background: var(--bad-bg); color: var(--bad); }
+.coindetail dl { display: grid; grid-template-columns: 74px minmax(0, 1fr); gap: 5px 10px; margin: 0; }
+.coindetail dt { color: var(--faint); font-size: 12px; }
+.coindetail dd { margin: 0; min-width: 0; overflow-wrap: anywhere; }
+.coindetail code { font-size: 11.5px; }
+.coindetail .meaning { color: var(--fg); }
+
 /* ---------- script engine */
 .engine { display: grid; grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr); gap: 16px; }
 @media (max-width: 900px) { .engine { grid-template-columns: minmax(0, 1fr); } }
@@ -346,9 +363,19 @@ footer { font-size: 13px; color: var(--muted); border-top: 1px solid var(--line)
     <div class="ledger">
       <div class="panel">
         <div class="ptitle" style="margin-bottom:6px"><h3>UTXO set</h3><span class="ref">{(txid, vout): {value, script_pubkey}}</span></div>
-        <p class="hint" style="margin-bottom:8px">Every coin is an unspent output of an earlier transaction. The ring color shows whose key unlocks it, and the label under it is its address in the set, <code>txid:vout</code>. Click a coin to spend it.</p>
+        <p class="hint" style="margin-bottom:10px">Bitcoin keeps no account balances. It keeps a list of coins that have not been spent yet: the <b>UTXO set</b> (unspent transaction outputs). Every coin was created as an output of some earlier transaction, and each one is locked so that only its owner can spend it.</p>
+        <div class="anatomy" aria-label="How to read a coin">
+          <span class="disc">69</span>
+          <ul>
+            <li><b>69</b>: the coin's value. A coin is always spent whole.</li>
+            <li><b>Ring color</b>: whose key unlocks it (here Alice's).</li>
+            <li><b>8530:1</b> under a coin: its address in the set. It is output <b>1</b> of the transaction whose id starts with <b>8530</b>.</li>
+          </ul>
+        </div>
+        <div class="setsum" id="utxoSum"></div>
         <div id="utxoView"></div>
-        <div class="shelf"><h4>Spent coins</h4><div class="coins" id="shelfView"></div></div>
+        <div class="shelf"><h4>Spent coins</h4><p class="hint" style="margin-bottom:6px">Coins used as inputs are deleted from the set. They are kept on this shelf only so you can try spending one again.</p><div class="coins" id="shelfView"></div></div>
+        <div class="coindetail" id="coinDetail" aria-live="polite"></div>
       </div>
       <div class="panel builder">
         <div class="ptitle" style="margin:0"><h3>Transaction</h3><span class="ref">click a coin to spend it</span></div>
@@ -728,6 +755,7 @@ function commit(tx, txid, label, fee = 0) {
   tx.outputs.forEach((o, i) => { utxo.set(`${txid}:${i}`, { txid, vout: i, ...o }); fresh.add(`${txid}:${i}`); });
   shelf.splice(6);
   mempool.push({ tx, id: txid, label, fee });
+  txLabels.set(txid, label);
 }
 
 /* ================= builder ================= */
@@ -755,13 +783,32 @@ function coinHTML(c, opts = {}) {
   const cls = ["coin", opts.spent ? "spent" : "", fresh.has(key) ? "mint" : ""].join(" ");
   return `<button type="button" class="${cls}" data-key="${key}" aria-pressed="${B.input === key}" title="${PEOPLE[own]}'s coin ${key}${opts.spent ? " (spent)" : ""}" style="--ring:${color(own)}"><span class="disc">${c.value}</span><small>${c.txid.slice(0, 4)}:${c.vout}</small></button>`;
 }
+const txLabels = new Map();
+let detailKey = null;
+function renderCoinDetail(key) {
+  const c = coinByKey(key), el = $("#coinDetail");
+  if (!c) { el.innerHTML = ""; return; }
+  const own = ownerOf(c.script_pubkey), spentBy = utxo.has(key) ? null : c.spentIn;
+  const lock = c.script_pubkey.map(x => typeof x === "number" ? x : x.startsWith("OP_") ? x : short(x, 6, 4)).join(" ");
+  const meaning = own === "vault"
+    ? "Unlocks only with valid signatures from any 2 of Alice, Bob and Carol (OP_CHECKMULTISIG)."
+    : `Unlocks only for someone who shows a public key that hashes to <code>${short(c.script_pubkey[2], 6, 4)}</code>, which is ${PEOPLE[own]}'s, and signs with the matching private key.`;
+  el.innerHTML = `<h4><span style="width:10px;height:10px;border-radius:3px;background:${color(own)}"></span>${PEOPLE[own]}'s coin · ${c.value}<span class="badge${spentBy ? " sp" : ""}">${spentBy ? "spent" : "unspent"}</span></h4>
+    <dl><dt>Created by</dt><dd>output ${c.vout} of tx <code>${short(c.txid, 8, 4)}</code> (${esc(txLabels.get(c.txid) || "")})</dd>
+    <dt>Locked by</dt><dd><code>${esc(lock)}</code></dd>
+    <dt>Meaning</dt><dd class="meaning">${meaning}</dd>
+    ${spentBy ? `<dt>Spent in</dt><dd>tx <code>${short(spentBy, 8, 4)}</code> (${esc(txLabels.get(spentBy) || "")}). It is no longer in the set.</dd>` : `<dt>To spend</dt><dd>Click it. It becomes the input of the transaction in the middle panel.</dd>`}</dl>`;
+}
 function renderUtxo() {
   const by = {}; for (const c of utxo.values()) (by[ownerOf(c.script_pubkey)] ||= []).push(c);
   $("#utxoView").innerHTML = ["alice", "bob", "carol", "dave", "erin", "vault", "mallory"].map(id => `
-    <div class="owner"><div class="who"><i style="background:${color(id)}"></i><span>${PEOPLE[id]}${id === "vault" ? "<small>2-of-3: A, B, C</small>" : id === "mallory" ? "<small>attacker</small>" : ""}</span></div>
+    <div class="owner"><div class="who"><i style="background:${color(id)}"></i><span>${PEOPLE[id]}<small>${id === "mallory" ? "attacker, no coins" : `${(by[id] || []).length} coin${(by[id] || []).length === 1 ? "" : "s"} · <b>${(by[id] || []).reduce((t, c) => t + c.value, 0)}</b>`}${id === "vault" ? "<br>any 2 of A, B, C" : ""}</small></span></div>
     <div class="coins">${(by[id] || []).map(c => coinHTML(c)).join("") || '<span class="none">no coins</span>'}</div></div>`).join("");
   $("#shelfView").innerHTML = shelf.map(c => coinHTML(c, { spent: true })).join("") || '<span class="none">none yet</span>';
+  const all = [...utxo.values()];
+  $("#utxoSum").innerHTML = `<span><b>${all.length}</b> unspent coins</span><span>total value <b>${all.reduce((t, c) => t + c.value, 0)}</b></span><span>hover or click a coin for details</span>`;
   fresh.clear();
+  renderCoinDetail(detailKey && coinByKey(detailKey) ? detailKey : B.input || kOf(all[0]));
   $("#mempoolView").innerHTML = mempool.length ? mempool.map(m => `<span class="txpill" title="${esc(m.label)}">${m.id.slice(0, 6)} · ${esc(m.label)}</span>`).join("") : '<span class="small muted">empty</span>';
 }
 function renderBuilder() {
@@ -866,6 +913,9 @@ function loadScenario(id) {
 $("#scenarios").innerHTML = SCEN.map(s => `<button type="button" class="chip${s.ok ? "" : " att"}" data-id="${s.id}" aria-pressed="false"><i></i>${s.t}</button>`).join("");
 $("#scenarios").addEventListener("click", e => { const b = e.target.closest("[data-id]"); if (b && !running) { loadScenario(b.dataset.id); runVerify(); } });
 const clearScen = () => { for (const b of $("#scenarios").children) b.setAttribute("aria-pressed", "false"); renderBrief(null); };
+const hoverCoin = e => { const c = e.target.closest(".coin[data-key]"); if (c && c.dataset.key !== detailKey) { detailKey = c.dataset.key; renderCoinDetail(detailKey); } };
+document.addEventListener("mouseover", hoverCoin);
+document.addEventListener("focusin", hoverCoin);
 document.addEventListener("click", e => {
   const c = e.target.closest(".coin[data-key]"); if (!c || running) return;
   B.input = c.dataset.key; const coin = coinByKey(B.input); clearScen();
@@ -1234,6 +1284,7 @@ try {
   await Promise.all([broadcast(n1, r1, true), broadcast(n3, r3, true)]);
   await broadcast(n2, await mine(n2, 3, true), true);
   nodes.forEach(n => n.live = "");
+  txLabels.set(genesisId, "the genesis block's starting coins");
   // ledger history: two spends sit in the mempool, the third is shown
   for (const id of ["vault", "tamper", "pay"]) { loadScenario(id); await runVerify(false); }
   renderUtxo(); renderBuilder();
