@@ -187,6 +187,42 @@ select, input[type="number"] { font: inherit; font-size: 14px; color: var(--fg);
 .coindetail code { font-size: 11.5px; }
 .coindetail .meaning { color: var(--fg); }
 
+.ltools { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.ledger2 { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.9fr); gap: 16px; align-items: start; }
+@media (max-width: 900px) { .ledger2 { grid-template-columns: minmax(0, 1fr); } }
+table.bal { width: 100%; border-collapse: collapse; font-size: 13px; font-variant-numeric: tabular-nums; }
+table.bal th { text-align: right; font-size: 11px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--faint); padding: 4px 6px; border-bottom: 1px solid var(--line); }
+table.bal th:first-child, table.bal td:first-child { text-align: left; }
+table.bal td { text-align: right; padding: 6px; border-bottom: 1px dashed var(--line); font-family: var(--mono); font-size: 12.5px; }
+table.bal td:first-child { font-family: var(--body); font-size: 13px; font-weight: 600; }
+table.bal td i { display: inline-block; width: 9px; height: 9px; border-radius: 3px; margin-right: 7px; }
+table.bal tr.tot td { border-bottom: 0; color: var(--muted); font-weight: 600; }
+.up { color: var(--ok); } .down { color: var(--bad); } .flat { color: var(--faint); }
+ol.hist { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; max-height: 420px; overflow: auto; }
+.hist li { display: grid; grid-template-columns: 34px minmax(0, 1fr); gap: 10px; padding: 9px 11px; border-radius: 11px; background: var(--panel2); border-left: 3px solid var(--line); }
+.hist li.ok { border-left-color: var(--ok); } .hist li.no { border-left-color: var(--bad); } .hist li.gen { border-left-color: var(--coin); }
+.hist .hn { font-family: var(--mono); font-size: 12px; color: var(--faint); padding-top: 2px; }
+.hist b { font-size: 13.5px; font-weight: 600; }
+.hist p { font-size: 12.5px; color: var(--muted); margin-top: 3px; }
+.pill { display: inline-block; font-family: var(--mono); font-size: 10.5px; font-weight: 600; padding: 1px 7px; border-radius: 6px; margin-left: 6px; vertical-align: 1px; }
+.pill.ok { background: var(--ok-bg); color: var(--ok); } .pill.no { background: var(--bad-bg); color: var(--bad); } .pill.gen, .pill.pend { background: var(--coin-bg); color: var(--coin); } .pill.mined { background: var(--chain-bg); color: var(--chain); }
+/* guided tour */
+.tour { position: fixed; z-index: 50; left: 50%; transform: translateX(-50%); bottom: calc(14px + env(safe-area-inset-bottom, 0px)); width: min(700px, calc(100% - 24px)); background: var(--panel); border: 1.5px solid var(--coin); border-radius: 16px; padding: 14px 16px; box-shadow: 0 18px 50px rgba(0,0,0,.45); display: flex; flex-direction: column; gap: 8px; }
+.tour-top { display: flex; align-items: center; gap: 10px; }
+.tour-count { font-family: var(--mono); font-size: 12px; color: var(--coin); white-space: nowrap; }
+.tour-dots { display: flex; gap: 4px; flex: 1; flex-wrap: wrap; }
+.tour-dots i { width: 14px; height: 4px; border-radius: 2px; background: var(--line); }
+.tour-dots i.on { background: var(--coin); }
+.tour-x { border: 0; background: none; font-size: 20px; line-height: 1; color: var(--muted); padding: 0 4px; }
+.tour h3 { font-size: 17px; }
+.tour p { font-size: 14px; color: var(--muted); line-height: 1.5; }
+.tour p b { color: var(--fg); }
+.tour-btns { display: flex; gap: 8px; justify-content: flex-end; align-items: center; }
+.tour-btns .status { margin-right: auto; font-size: 12px; color: var(--faint); font-family: var(--mono); }
+body.touring .wrap { padding-bottom: 280px; }
+body.touring .wrap > *:not(:has(.tour-focus)):not(.tour-focus) { opacity: .3; transition: opacity .3s; }
+.tour-focus { outline: 3px solid var(--coin); outline-offset: 5px; border-radius: 16px; box-shadow: 0 0 0 10px var(--coin-bg); transition: outline-color .3s; }
+
 /* ---------- script engine */
 .engine { display: grid; grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr); gap: 16px; }
 @media (max-width: 900px) { .engine { grid-template-columns: minmax(0, 1fr); } }
@@ -330,6 +366,11 @@ footer { font-size: 13px; color: var(--muted); border-top: 1px solid var(--line)
 @media (prefers-reduced-motion: reduce) { *, *::before { animation: none !important; transition: none !important; } }
 </style>
 
+<div class="tour" id="tour" hidden role="dialog" aria-label="Guided tour" aria-live="polite">
+  <div class="tour-top"><span class="tour-count" id="tourCount"></span><div class="tour-dots" id="tourDots"></div><button type="button" class="tour-x" id="tourX" aria-label="Close the tour">×</button></div>
+  <h3 id="tourTitle"></h3><p id="tourBody"></p>
+  <div class="tour-btns"><span class="status" id="tourStatus"></span><button type="button" class="btn" id="tourBack">◀ Back</button><button type="button" class="btn primary" id="tourNext">Next ▶</button></div>
+</div>
 <div class="wrap">
   <div id="crash" hidden></div>
 
@@ -338,6 +379,7 @@ footer { font-size: 13px; color: var(--muted); border-top: 1px solid var(--line)
       <p class="eyebrow">SIL7163 · Prof. Subodh V. Sharma · Assignments 1 + 2</p>
       <h1>UTXO <span class="gold">Chain</span> Lab</h1>
       <p class="lede">Two course assignments joined into one multi-node blockchain in Python: blocks, Merkle trees and proof-of-work consensus from A1, carrying A2's UTXO transactions and Bitcoin Script. It is rebuilt here so you can use it: spend coins, watch the Bitcoin Script stack decide who owns them, seal transactions into a Merkle tree, then mine blocks on three nodes and watch them settle forks by cumulative proof of work. The signatures are real secp256k1 ECDSA, and every hash is computed in your browser.</p>
+      <div class="ltools"><button type="button" class="btn primary" id="tourStart">▶ Take the guided tour</button><span class="small muted">17 short steps. Each one acts on the page and tells you what changed.</span></div>
     </div>
     <div class="claims">
       <a class="claim" href="#network"><span class="glyph c">PoW</span><span><b>Multi-node consensus</b><span>Cumulative-work fork choice with a deterministic tie-break</span></span><span class="live" id="liveC"><strong>–</strong>best tip</span></a>
@@ -358,10 +400,11 @@ footer { font-size: 13px; color: var(--muted); border-top: 1px solid var(--line)
       <div class="gstep"><span class="n">2</span><div><b>Shape the transaction</b><span>The middle panel shows which coin is spent, who receives new coins and who signs. Change any of it, then press Sign and verify.</span></div></div>
       <div class="gstep"><span class="n">3</span><div><b>Read the checks</b><span>The right panel runs the six checks top to bottom. Each says what it asks and what it found. The first failure stops the run and the ledger stays untouched.</span></div></div>
     </div>
+    <div class="ltools"><button type="button" class="btn primary" id="tourStart2">▶ Guided tour</button><button type="button" class="btn" id="resetLedger">Reset to the starting coins</button><span class="small muted">The balances and the full history of transactions are below the three panels.</span></div>
     <div class="chips" id="scenarios" role="group" aria-label="Scenarios"></div>
     <div class="brief" id="brief" aria-live="polite"></div>
     <div class="ledger">
-      <div class="panel">
+      <div class="panel" id="utxoPanel">
         <div class="ptitle" style="margin-bottom:6px"><h3>UTXO set</h3><span class="ref">{(txid, vout): {value, script_pubkey}}</span></div>
         <p class="hint" style="margin-bottom:10px">Bitcoin keeps no account balances. It keeps a list of coins that have not been spent yet: the <b>UTXO set</b> (unspent transaction outputs). Every coin was created as an output of some earlier transaction, and each one is locked so that only its owner can spend it.</p>
         <div class="anatomy" aria-label="How to read a coin">
@@ -377,7 +420,7 @@ footer { font-size: 13px; color: var(--muted); border-top: 1px solid var(--line)
         <div class="shelf"><h4>Spent coins</h4><p class="hint" style="margin-bottom:6px">Coins used as inputs are deleted from the set. They are kept on this shelf only so you can try spending one again.</p><div class="coins" id="shelfView"></div></div>
         <div class="coindetail" id="coinDetail" aria-live="polite"></div>
       </div>
-      <div class="panel builder">
+      <div class="panel builder" id="builderPanel">
         <div class="ptitle" style="margin:0"><h3>Transaction</h3><span class="ref">click a coin to spend it</span></div>
         <div class="field"><span class="lbl">Input · the coin being spent</span><div class="inchip" id="bInput"></div>
           <span class="hint">A coin is spent whole. Whatever is not paid out comes back as change or becomes the miner's fee.</span>
@@ -395,12 +438,18 @@ footer { font-size: 13px; color: var(--muted); border-top: 1px solid var(--line)
         <button class="btn primary" id="bRun" type="button">Sign and verify</button>
         <span class="hint">Signing fills in the input's <code>script_sig</code>. Verifying runs the six checks on the right.</span>
       </div>
-      <div class="panel pipe">
+      <div class="panel pipe" id="pipePanel">
         <div class="ptitle" style="margin-bottom:4px"><h3>verify_transaction(tx, utxo_set)</h3></div>
         <p class="hint" style="margin-bottom:12px">Checking: <b id="pipeTx" style="color:var(--fg)"></b></p>
         <ol id="pipe"></ol>
         <div id="verdict"></div>
       </div>
+    </div>
+    <div class="ledger2">
+      <div class="panel" id="balances"><div class="ptitle"><h3>Balances</h3><span class="ref">sum of each person's coins</span></div>
+        <table class="bal"><thead><tr><th>Who</th><th>Start</th><th>Now</th><th>Change</th></tr></thead><tbody id="balBody"></tbody></table>
+        <p class="hint" style="margin-top:10px"><b>Start</b> is what the genesis block gave each wallet. Accepted transactions update the set straight away in this lab, while a real node would wait until they are mined. The total falls by the fees, which the miner collects in its coinbase (section 05).</p></div>
+      <div class="panel" id="history"><div class="ptitle"><h3>Transaction history</h3><span class="ref">every attempt, newest first</span></div><ol class="hist" id="histList"></ol></div>
     </div>
     <div class="mempool"><span class="lbl">Mempool</span><span id="mempoolView" class="chips"></span><span class="small muted">Accepted transactions wait here until a node mines them (section 05).</span></div>
   </section>
@@ -695,6 +744,8 @@ genesisTx.outputs.forEach((o, i) => utxo.set(`${genesisId}:${i}`, { txid: genesi
 const shelf = [];          // spent coins, newest first
 let mempool = [];          // {tx, id, label}
 let stats = { ok: 0, no: 0 };
+const history = [{ genesis: true }];
+const START = { alice: 100, bob: 100, carol: 100, dave: 100, erin: 100, vault: 100, mallory: 0 };
 let lastRun = null;
 const fresh = new Set();
 
@@ -799,6 +850,34 @@ function renderCoinDetail(key) {
     <dt>Meaning</dt><dd class="meaning">${meaning}</dd>
     ${spentBy ? `<dt>Spent in</dt><dd>tx <code>${short(spentBy, 8, 4)}</code> (${esc(txLabels.get(spentBy) || "")}). It is no longer in the set.</dd>` : `<dt>To spend</dt><dd>Click it. It becomes the input of the transaction in the middle panel.</dd>`}</dl>`;
 }
+function minedIn(txid) {
+  let b = blocks.get(globalBest());
+  while (b) { if (b.txs.some(t => t.id === txid)) return b.header.index; b = blocks.get(b.parent); }
+  return null;
+}
+function renderLedgerInfo() {
+  const now = {}; for (const c of utxo.values()) { const o = ownerOf(c.script_pubkey); now[o] = (now[o] || 0) + c.value; }
+  let ts = 0, tn = 0;
+  $("#balBody").innerHTML = Object.keys(START).map(id => {
+    const a = START[id], n = now[id] || 0, d = n - a; ts += a; tn += n;
+    return `<tr><td><i style="background:${color(id)}"></i>${PEOPLE[id]}</td><td>${a}</td><td>${n}</td><td class="${d > 0 ? "up" : d < 0 ? "down" : "flat"}">${d > 0 ? "+" : ""}${d || "·"}</td></tr>`;
+  }).join("") + `<tr class="tot"><td>Total</td><td>${ts}</td><td>${tn}</td><td>${tn - ts || "·"}</td></tr>`;
+  $("#histList").innerHTML = history.map((h, i) => {
+    if (h.genesis) return `<li class="gen"><span class="hn">#0</span><div><b>Genesis block</b><span class="pill gen">block #0</span><p>Created the six starting coins: Alice, Bob, Carol, Dave and Erin get 100 each, and the 2-of-3 vault gets 100.</p></div></li>`;
+    if (!h.ok) return `<li class="no"><span class="hn">#${i}</span><div><b>${esc(h.scen)}</b><span class="pill no">rejected at check ${STEPS.findIndex(s => s.id === h.failAt) + 1}</span><p>${esc(h.label)}. ${esc(h.msg)} Nothing changed.</p></div></li>`;
+    const m = minedIn(h.txid);
+    return `<li class="ok"><span class="hn">#${i}</span><div><b>${esc(h.scen)}</b><span class="pill ok">accepted</span><span class="pill ${m === null ? "pend" : "mined"}">${m === null ? "in mempool" : `mined in block #${m}`}</span><p>Spent ${esc(h.ins.join(", "))}. Created ${esc(h.outs.join(", "))}. Fee ${h.fee}.</p></div></li>`;
+  }).reverse().join("");
+}
+function resetLedger() {
+  if (running) return;
+  utxo.clear(); genesisTx.outputs.forEach((o, i) => utxo.set(`${genesisId}:${i}`, { txid: genesisId, vout: i, ...o }));
+  shelf.length = 0; mempool.length = 0; history.length = 0; history.push({ genesis: true });
+  stats = { ok: 0, no: 0 }; lastRun = null; detailKey = null;
+  Object.assign(B, { input: null, dup: false, tamper: false, signer: "owner", outputs: [] }); clearScen();
+  renderPipe(null); renderVerdict(null); $("#pipeTx").textContent = "nothing yet";
+  renderUtxo(); renderBuilder(); renderMerkleSel(); renderLive();
+}
 function renderUtxo() {
   const by = {}; for (const c of utxo.values()) (by[ownerOf(c.script_pubkey)] ||= []).push(c);
   $("#utxoView").innerHTML = ["alice", "bob", "carol", "dave", "erin", "vault", "mallory"].map(id => `
@@ -809,6 +888,7 @@ function renderUtxo() {
   $("#utxoSum").innerHTML = `<span><b>${all.length}</b> unspent coins</span><span>total value <b>${all.reduce((t, c) => t + c.value, 0)}</b></span><span>hover or click a coin for details</span>`;
   fresh.clear();
   renderCoinDetail(detailKey && coinByKey(detailKey) ? detailKey : B.input || kOf(all[0]));
+  renderLedgerInfo();
   $("#mempoolView").innerHTML = mempool.length ? mempool.map(m => `<span class="txpill" title="${esc(m.label)}">${m.id.slice(0, 6)} · ${esc(m.label)}</span>`).join("") : '<span class="small muted">empty</span>';
 }
 function renderBuilder() {
@@ -859,6 +939,10 @@ async function runVerify(animate = true) {
   const label = txLabel(coin, B.outputs);
   const run = verifyTransaction(tx);
   lastRun = { tx, coin, run, label };
+  const scen = SCEN.find(x => $(`#scenarios [data-id="${x.id}"]`)?.getAttribute("aria-pressed") === "true");
+  history.push({ label, scen: scen ? scen.t : "Your own transaction", ok: run.ok, failAt: run.failAt, msg: run.failAt ? run.res[run.failAt].msg : "", fee: run.fee, txid: run.txid,
+    ins: tx.inputs.map(i => { const c = coinByKey(`${i.txid}:${i.vout}`); return c ? `${PEOPLE[ownerOf(c.script_pubkey)]}'s ${c.value} (${i.txid.slice(0, 4)}:${i.vout})` : "an unknown coin"; }),
+    outs: tx.outputs.map(o => `${PEOPLE[ownerOf(o.script_pubkey)]} ${o.value}`) });
   $("#pipeTx").textContent = label;
   renderVerdict(null);
   if (animate) for (let k = 0; k < STEPS.length; k++) {
@@ -1241,7 +1325,7 @@ function drawDetail() {
   $("#whatIf").addEventListener("click", () => { whatIf = whatIf === b.hash ? null : b.hash; drawTree(); drawDetail(); });
 }
 function drawLog() { $("#log").innerHTML = logs.map(l => `<li class="${l.kind}"><span class="t">t=${l.t}</span><span>${esc(l.text)}</span></li>`).join(""); }
-function renderNet() { drawNet(); drawTree(); drawDetail(); drawLog(); renderMerkleSel(); renderLive(); }
+function renderNet() { drawNet(); drawTree(); drawDetail(); drawLog(); renderMerkleSel(); renderLive(); renderLedgerInfo(); }
 function renderLive() {
   const b = blocks.get(globalBest()); if (!b) return;
   $("#liveC").innerHTML = `<strong>#${b.header.index} · Σ ${fmt(b.cum)}</strong>best tip`;
@@ -1272,6 +1356,83 @@ $("#nHeavy").addEventListener("click", () => act(async () => {
   renderNet(); await sleep(500);
   n3.cut = false; log("net", "N3 reconnects and syncs"); drawNet(); await sync();
 }));
+
+/* ================= guided tour ================= */
+const idle = async () => { while (running || netBusy) await new Promise(r => setTimeout(r, 120)); };
+const TOUR = [
+  { t: "Start from the genesis coins", sel: "#balances", act: () => resetLedger(),
+    b: "The ledger is reset to what the genesis block created. <b>Alice, Bob, Carol, Dave and Erin own one coin of 100 each</b>, and the 2-of-3 vault owns another 100. Mallory, the attacker, owns nothing. The Balances table shows these starting amounts." },
+  { t: "A balance is just coins", sel: "#utxoPanel",
+    b: "The UTXO set holds those six coins. Nobody has an account; a person's balance is the sum of the coins locked to their key. Hover over any coin to see who can unlock it and which transaction created it." },
+  { t: "Build a payment", sel: "#builderPanel", act: () => loadScenario("pay"),
+    b: "Alice will pay Bob 30. The middle panel now <b>spends Alice's 100 coin</b> and creates two new coins: <b>30 for Bob</b> and <b>69 back to Alice</b> as change. The missing 1 is the miner's fee." },
+  { t: "Sign and verify", sel: "#pipePanel", act: () => runVerify(),
+    b: "Alice signs with her key, and <code>verify_transaction</code> runs its six checks top to bottom. Each one shows the question it asks and what it found. <b>All six pass</b>, so the transaction is accepted." },
+  { t: "What changed in the set", sel: "#utxoPanel",
+    b: "Alice's 100 coin moved to the <b>Spent coins</b> shelf. Two new coins appeared under the new transaction id: <b>Bob's 30</b> and <b>Alice's 69</b>. Bob now holds two coins worth 130." },
+  { t: "Balances and history", sel: "#ledger .ledger2",
+    b: "The Balances table now reads <b>Alice 69 (−31), Bob 130 (+30)</b>, and the total is down by the 1-coin fee. The history lists the payment as accepted and waiting in the mempool." },
+  { t: "An attack: Mallory forges a spend", sel: "#pipePanel", act: async () => { loadScenario("forge"); await runVerify(); },
+    b: "Mallory tries to take Bob's coin by signing with her own key. <b>Check 4 fails</b>: her public key does not hash to the value in Bob's lock. Nothing after it runs." },
+  { t: "A rejection changes nothing", sel: "#ledger .ledger2",
+    b: "Balances are exactly as before. The history records the attempt, the check that stopped it and why. Bob still owns his coins." },
+  { t: "Spending a coin twice", sel: "#pipePanel", act: async () => { loadScenario("spent"); await runVerify(); },
+    b: "Now someone tries to spend <b>Alice's old 100 coin again</b>. <b>Check 3 fails</b>: that coin was deleted from the set when Alice paid Bob. This is how double spending is stopped." },
+  { t: "A 2-of-3 vault spend", sel: "#pipePanel", act: async () => { loadScenario("vault"); await runVerify(); },
+    b: "The vault coin needs signatures from any two of Alice, Bob and Carol. Alice and Bob sign, so it pays <b>Dave 25</b> and keeps <b>73</b> in the vault. Fee 2. Accepted." },
+  { t: "Watch the stack decide", sel: "#script .engine", act: () => { loadScript("lab"); $("#sPlay").click(); },
+    b: "Section 02 replays the script check of that vault spend. The two signatures and the vault's lock run on one stack, and <b>OP_CHECKMULTISIG finds 2 of 2 valid</b>, leaving a single 1. Use Back and Step to go at your own pace." },
+  { t: "What was signed", sel: "#bytes .bytes",
+    b: "A signature covers these exact bytes: the transaction with this input's <code>script_sig</code> replaced by the coin's lock. Editing any amount changes the hash, so the signature stops matching." },
+  { t: "Into the next block", sel: "#merkle .merkle", act: () => { $("#mSel").value = "next"; mLeaf = 1; renderMerkle(); },
+    b: "The two accepted transactions and the miner's coinbase are the leaves of the next block's <b>Merkle tree</b>. Only the root goes in the block header. The highlighted path is the proof that one transaction is inside." },
+  { t: "Mine the block", sel: "#network .net", act: async () => { nodes.forEach(n => n.cut = false); D = 3; await act(async () => { await sync(true); const blk = await mineAndShare(nodeById("N1"), D); selBlock = blk.hash; }); },
+    b: "Node N1 tried nonces until its block hash started with <b>3 zeros</b>, then sent the block to N2 and N3. They checked the hash, the link and the Merkle root, and extended their chains. The block details show what it holds." },
+  { t: "Now recorded on chain", sel: "#history",
+    b: "The history now shows both payments as <b>mined in that block</b>. The mempool is empty again." },
+  { t: "A fork, settled", sel: "#network .net", act: async () => { $("#nRace").click(); await new Promise(r => setTimeout(r, 200)); await idle(); },
+    b: "N1 and N2 mined at the same moment, so the chain forked. Both blocks carry the same work, so <b>every node picks the one with the lower hash</b> and the other becomes stale (faded). The network log explains each node's choice." },
+  { t: "Your turn", sel: "#ledger .guide",
+    b: "That is the whole flow, from coins to a settled chain. Pick any scenario chip or click a coin to build your own transaction, and use <b>Reset to the starting coins</b> to begin again." },
+];
+let tStep = -1;
+const tDone = new Set();
+async function tourGo(i) {
+  if (i >= TOUR.length) return tourEnd();
+  if (i < 0) return;
+  tStep = i; const st = TOUR[i];
+  document.body.classList.add("touring"); $("#tour").hidden = false;
+  $("#tourCount").textContent = `Step ${i + 1} of ${TOUR.length}`;
+  $("#tourDots").innerHTML = TOUR.map((_, k) => `<i class="${k <= i ? "on" : ""}"></i>`).join("");
+  $("#tourTitle").textContent = st.t; $("#tourBody").innerHTML = st.b;
+  document.querySelectorAll(".tour-focus").forEach(e => e.classList.remove("tour-focus"));
+  const el = $(st.sel); el.classList.add("tour-focus");
+  window.scrollTo({ top: el.getBoundingClientRect().top + window.scrollY - 70, behavior: RM ? "auto" : "smooth" });
+  $("#tourNext").textContent = i === TOUR.length - 1 ? "Finish" : "Next ▶";
+  if (st.act && !tDone.has(i)) {
+    tDone.add(i);
+    $("#tourNext").disabled = $("#tourBack").disabled = true; $("#tourStatus").textContent = "working…";
+    try { await st.act(); await idle(); } catch (e) { console.error(e); }
+  }
+  $("#tourNext").disabled = false; $("#tourBack").disabled = i === 0; $("#tourStatus").textContent = "";
+}
+function tourEnd() {
+  tStep = -1; $("#tour").hidden = true; document.body.classList.remove("touring");
+  document.querySelectorAll(".tour-focus").forEach(e => e.classList.remove("tour-focus"));
+}
+function tourStart() { if (running || netBusy) return; tDone.clear(); stopPlay(); tourGo(0); }
+$("#tourStart").addEventListener("click", tourStart);
+$("#tourStart2").addEventListener("click", tourStart);
+$("#resetLedger").addEventListener("click", resetLedger);
+$("#tourNext").addEventListener("click", () => tourGo(tStep + 1));
+$("#tourBack").addEventListener("click", () => tourGo(tStep - 1));
+$("#tourX").addEventListener("click", tourEnd);
+document.addEventListener("keydown", e => {
+  if (tStep < 0 || e.target.closest("input, select")) return;
+  if (e.key === "Escape") tourEnd();
+  else if (e.key === "ArrowRight" && !$("#tourNext").disabled) tourGo(tStep + 1);
+  else if (e.key === "ArrowLeft" && !$("#tourBack").disabled) tourGo(tStep - 1);
+});
 
 /* ================= boot ================= */
 try {
